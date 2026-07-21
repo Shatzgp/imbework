@@ -1,7 +1,7 @@
 version: 2.1
 
 orbs:
-  sonarcloud: sonarsource/sonarcloud@2.0.0
+  sonarcloud: sonarsource/sonarcloud@3.0.0
 
 jobs:
   test-and-scan:
@@ -10,36 +10,16 @@ jobs:
     working_directory: ~/project
     steps:
       - checkout
-
       - run:
           name: Install dependencies
           command: cd backend && npm ci
-
-      # --- Static Application Security Testing (SAST) ---
-      # SonarCloud scans source code for vulnerabilities and code smells.
-      # Organization/project keys passed explicitly since sonar-project.properties
-      # lives at repo root but the app code is under backend/.
-      - sonarcloud/scan:
-          cache_version: '1'
-          extra_scanner_args: >-
-            -Dsonar.organization=shatzgp
-            -Dsonar.projectKey=Shatzgp_imbework
-            -Dsonar.sources=backend
-            -Dsonar.exclusions=backend/node_modules/**,backend/test/**,backend/ssl/**
-
-      # --- Software Composition Analysis (SCA) ---
-      # Checks third-party dependencies (package.json) for known CVEs.
+      - sonarcloud/scan
       - run:
           name: Software composition analysis (npm audit)
-          command: |
-            cd backend && npm audit --audit-level=high || echo "Review audit findings above before merging"
-
-      # --- API testing ---
-      # Runs supertest/jest suite against real endpoints (auth, payments, staff).
+          command: cd backend && npm audit --audit-level=high || echo "Review audit findings above before merging"
       - run:
           name: Run API tests
           command: cd backend && npm test
-
       - run:
           name: Lint
           command: cd backend && npm run lint || true
@@ -47,4 +27,5 @@ jobs:
 workflows:
   build-test-scan:
     jobs:
-      - test-and-scan
+      - test-and-scan:
+          context: sonarcloud
