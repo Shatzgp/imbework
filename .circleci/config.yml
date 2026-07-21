@@ -1,0 +1,43 @@
+version: 2.1
+
+orbs:
+  sonarcloud: sonarsource/sonarcloud@2.0.0
+
+jobs:
+  test-and-scan:
+    docker:
+      - image: cimg/node:20.11
+    working_directory: ~/project/backend
+    steps:
+      - checkout:
+          path: ~/project
+
+      - run:
+          name: Install dependencies
+          command: npm ci
+
+      # --- Static Application Security Testing (SAST) ---
+      # SonarCloud/SonarQube scans source code for vulnerabilities and code smells.
+      - sonarcloud/scan
+
+      # --- Software Composition Analysis (SCA) ---
+      # Checks third-party dependencies (package.json) for known CVEs.
+      - run:
+          name: Software composition analysis (npm audit)
+          command: |
+            npm audit --audit-level=high || echo "Review audit findings above before merging"
+
+      # --- API testing ---
+      # Runs supertest/jest suite against real endpoints (auth, payments, staff).
+      - run:
+          name: Run API tests
+          command: npm test
+
+      - run:
+          name: Lint
+          command: npm run lint || true
+
+workflows:
+  build-test-scan:
+    jobs:
+      - test-and-scan
